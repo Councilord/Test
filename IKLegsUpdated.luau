@@ -43,30 +43,24 @@ local MaxRenderDistance = 500
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local IKHandler = require(script.IKHandler)
-local CurrentProfiles = {}
+local function EnableFootPlanting(Character)
+	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+	if Humanoid and Humanoid.RigType == Enum.HumanoidRigType.R15 then
+		Humanoid:EnableFootPlant(true)
+		-- For newer APIs, you may need: Humanoid.FootPlant = true
+	end
+end
 
 local function PlayerAdded(Player)
 	local function CharacterAdded(Character)
-		local IKProfile = IKHandler.New(Character, Stride, CycleSpeed, MaxRenderDistance) -- creates an ik object assigned to player
-		CurrentProfiles[IKProfile] = true -- stores the object inside an array 
+		EnableFootPlanting(Character)
 	end
-	Player.CharacterAdded:Connect(CharacterAdded) -- updates when a new character is added
+	Player.CharacterAdded:Connect(CharacterAdded)
 	if Player.Character then
 		CharacterAdded(Player.Character)
 	end
 end
 
-RunService:BindToRenderStep("IKPC",Enum.RenderPriority.Camera.Value,function() -- renders the ik system
-	for Profile, _ in pairs(CurrentProfiles) do -- loops through the array and renders each player
-		if not Profile:IsActive() then -- if player doesnt exists, delete profile
-			CurrentProfiles[Profile] = nil
-			Profile:Destroy()
-		else
-			Profile:Update()
-		end
-	end
-end)
 Players.PlayerAdded:Connect(PlayerAdded)
 for _, Player in pairs(Players:GetPlayers()) do
 	PlayerAdded(Player)

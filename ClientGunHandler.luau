@@ -1,5 +1,5 @@
 -- Version print for debugging
-print("[ClientGunHandler] Version 0.6 loaded")
+print("[ClientGunHandler] Version 0.8 (Physics Character Controllers footplanting integration)")
 
 local Settings = {}
 local Network = {}
@@ -3068,3 +3068,130 @@ do
 		--Char.Stepped
 	}
 end
+
+local function setupPhysicsController(char)
+    local controllerManager = char:FindFirstChild("ControllerManager")
+    if not controllerManager then return end
+    local groundController = controllerManager:FindFirstChild("GroundController")
+    local airController = controllerManager:FindFirstChild("AirController")
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local leftFoot = char:FindFirstChild("LeftFoot")
+    local rightFoot = char:FindFirstChild("RightFoot")
+    local leftSensor = controllerManager:FindFirstChild("LeftFootSensor")
+    local rightSensor = controllerManager:FindFirstChild("RightFootSensor")
+    if not (groundController and airController and humanoid and root and leftFoot and rightFoot and leftSensor and rightSensor) then return end
+
+    RunService.RenderStepped:Connect(function()
+        local rayParams = RaycastParams.new()
+        rayParams.FilterDescendantsInstances = {char}
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+        -- Left foot
+        local leftRay = workspace:Raycast(leftFoot.Position, Vector3.new(0, -2, 0), rayParams)
+        if leftRay then
+            leftSensor.SensedPart = leftRay.Instance
+            leftSensor.HitNormal = leftRay.Normal
+            leftSensor.HitFrame = CFrame.new(leftRay.Position)
+        end
+
+        -- Right foot
+        local rightRay = workspace:Raycast(rightFoot.Position, Vector3.new(0, -2, 0), rayParams)
+        if rightRay then
+            rightSensor.SensedPart = rightRay.Instance
+            rightSensor.HitNormal = rightRay.Normal
+            rightSensor.HitFrame = CFrame.new(rightRay.Position)
+        end
+
+        -- Set movement and facing direction
+        controllerManager.MovingDirection = humanoid.MoveDirection
+        if humanoid.MoveDirection.Magnitude > 0 then
+            controllerManager.FacingDirection = humanoid.MoveDirection
+        else
+            controllerManager.FacingDirection = root.CFrame.LookVector
+        end
+
+        -- Activate controller
+        if leftRay or rightRay then
+            controllerManager.ActiveController = groundController
+            humanoid:ChangeState(Enum.HumanoidStateType.Running)
+        else
+            controllerManager.ActiveController = airController
+            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+        end
+    end)
+end
+
+-- In your character spawn logic, add:
+local player = game.Players.LocalPlayer
+player.CharacterAdded:Connect(function(char)
+    setupPhysicsController(char)
+end)
+
+local function setupVisualFootplanting(char)
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.RigType ~= Enum.HumanoidRigType.R15 then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local leftFoot = char:FindFirstChild("LeftFoot")
+    local rightFoot = char:FindFirstChild("RightFoot")
+    if not (root and leftFoot and rightFoot) then return end
+
+    -- Clean up old IKControls/targets if present
+    for _, name in ipairs({"LeftFootIKControl", "RightFootIKControl", "LeftFootIKTarget", "RightFootIKTarget"}) do
+        local obj = humanoid:FindFirstChild(name) or root:FindFirstChild(name)
+        if obj then obj:Destroy() end
+    end
+
+    -- Create Attachments as IK targets
+    local leftTarget = Instance.new("Attachment")
+    leftTarget.Name = "LeftFootIKTarget"
+    leftTarget.Parent = root
+    local rightTarget = Instance.new("Attachment")
+    rightTarget.Name = "RightFootIKTarget"
+    rightTarget.Parent = root
+
+    -- Create IKControls
+    local leftIK = Instance.new("IKControl")
+    leftIK.Name = "LeftFootIKControl"
+    leftIK.Type = Enum.IKControlType.Position
+    leftIK.EndEffector = leftFoot
+    leftIK.ChainRoot = char:FindFirstChild("LeftUpperLeg")
+    leftIK.Target = leftTarget
+    leftIK.Parent = humanoid
+    leftIK.Priority = 1
+    leftIK.Enabled = true
+
+    local rightIK = Instance.new("IKControl")
+    rightIK.Name = "RightFootIKControl"
+    rightIK.Type = Enum.IKControlType.Position
+    rightIK.EndEffector = rightFoot
+    rightIK.ChainRoot = char:FindFirstChild("RightUpperLeg")
+    rightIK.Target = rightTarget
+    rightIK.Parent = humanoid
+    rightIK.Priority = 1
+    rightIK.Enabled = true
+
+    -- Update foot targets each frame
+    local conn = RunService.RenderStepped:Connect(function()
+        for side, foot in pairs({Left = leftFoot, Right = rightFoot}) do
+            local target = (side == "Left") and leftTarget or rightTarget
+            if foot and root and target then
+                local origin = foot.Position + Vector3.new(0, 0.5, 0)
+                local ray = Ray.new(origin, Vector3.new(0, -3, 0))
+                local hit, pos = workspace:FindPartOnRay(ray, char)
+                if hit then
+                    target.WorldPosition = pos + Vector3.new(0, 0.1, 0)
+                else
+                    target.WorldPosition = foot.Position
+                end
+            end
+        end
+    end)
+    -- Optionally store conn for cleanup if needed
+end
+
+-- Call this in your character spawn logic:
+local player = game.Players.LocalPlayer
+player.CharacterAdded:Connect(function(char)
+    setupVisualFootplanting(char)
+end)

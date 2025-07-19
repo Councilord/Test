@@ -1,5 +1,5 @@
 -- Version print for debugging
-print("[ClientGunHandler] Version 0.3 loaded")
+print("[ClientGunHandler] Version 0.4 loaded")
 
 local Settings = {}
 local Network = {}
@@ -1158,6 +1158,20 @@ do
 	local lastMovementAnim = nil
 	local lastAimingState = nil
 
+	function PlayAimingArmsOnly()
+		if CharAnims.Aim and not CharAnims.Aim.IsPlaying then
+			-- Play aiming animation only on the arms
+			CharAnims.Aim.Priority = Enum.AnimationPriority.Action
+			Animation.Play(CharAnims, "Aim", 0.1)
+		end
+	end
+
+	function StopAimingArmsOnly()
+		if CharAnims.Aim and CharAnims.Aim.IsPlaying then
+			Animation.Stop(CharAnims, "Aim", 0.1)
+		end
+	end
+
 	function Walk()
 		Char.SetSprint(false)
 		local FallSpeedMult = (Char.Falling or Char.Jumping or Char.Punching) and 0.4 or 1
@@ -1168,19 +1182,15 @@ do
 			backwardsmult = -1
 		end
 
-		-- Always play aiming animation if aiming
+		-- Always play aiming animation on arms only if aiming
 		if Aiming then
 			if lastAimingState ~= true then
-				if CharAnims.Aim and not CharAnims.Aim.IsPlaying then
-					Animation.Play(CharAnims, "Aim", 0.1)
-				end
+				PlayAimingArmsOnly()
 				lastAimingState = true
 			end
 		else
 			if lastAimingState ~= false then
-				if CharAnims.Aim and CharAnims.Aim.IsPlaying then
-					Animation.Stop(CharAnims, "Aim", 0.1)
-				end
+				StopAimingArmsOnly()
 				lastAimingState = false
 			end
 		end

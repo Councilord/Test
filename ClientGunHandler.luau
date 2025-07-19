@@ -1176,13 +1176,15 @@ do
 			Char.SetWalkspeed(Char.DefaultWalkSpeed / 1.5 * FallSpeedMult)
 			Animation.Stop(CharAnims, "CrouchWalk")
 			if Aiming then
-				Animation.Stop(CharAnims, "WalkBackwards",0.2)
-				Animation.Stop(CharAnims, "StrafeRightBackwards",0.2)
-				Animation.Stop(CharAnims, "StrafeRightForwards",0.2)
-				Animation.Stop(CharAnims, "StrafeLeftBackwards",0.2)
-				Animation.Stop(CharAnims, "StrafeLeftForwards",0.2)
-				Animation.Stop(CharAnims, "Walk",0.2)
-				Animation.Stop(CharAnims, "Run",0.2)
+				-- Stop all movement animations before playing a new one
+				Animation.Stop(CharAnims, "WalkBackwards", 0.2)
+				Animation.Stop(CharAnims, "StrafeRightBackwards", 0.2)
+				Animation.Stop(CharAnims, "StrafeRightForwards", 0.2)
+				Animation.Stop(CharAnims, "StrafeLeftBackwards", 0.2)
+				Animation.Stop(CharAnims, "StrafeLeftForwards", 0.2)
+				Animation.Stop(CharAnims, "Walk", 0.2)
+				Animation.Stop(CharAnims, "Run", 0.2)
+
 				if Speed > 0.05 then
 					local strafeAnim = nil
 					local reverse = 1
@@ -1206,23 +1208,25 @@ do
 					else
 						strafeAnim = "Walk"
 					end
-					if strafeAnim then
+					if strafeAnim and CharAnims[strafeAnim] then
 						if not CharAnims[strafeAnim].IsPlaying then
 							Animation.Play(CharAnims, strafeAnim, 0.2)
 							CharAnims[strafeAnim].Looped = true
 						end
-						CharAnims[strafeAnim]:AdjustSpeed(Speed / 12 * reverse)
-						CharAnims[strafeAnim]:AdjustWeight(1)
+						if CharAnims[strafeAnim].IsPlaying then
+							CharAnims[strafeAnim]:AdjustSpeed(Speed / 12 * reverse)
+							CharAnims[strafeAnim]:AdjustWeight(1)
+						end
 					end
 				else
-					Animation.Stop(CharAnims, "WalkBackwards",0.3)
-					Animation.Stop(CharAnims, "StrafeRightBackwards",0.3)
-					Animation.Stop(CharAnims, "StrafeRightForwards",0.3)
-					Animation.Stop(CharAnims, "StrafeLeftBackwards",0.3)
-					Animation.Stop(CharAnims, "StrafeLeftForwards",0.3)
-					Animation.Stop(CharAnims, "Walk",0.3)
-					Animation.Stop(CharAnims, "Run",0.2)
-					Animation.Play(CharAnims, "Idle",0.1)
+					Animation.Stop(CharAnims, "WalkBackwards", 0.3)
+					Animation.Stop(CharAnims, "StrafeRightBackwards", 0.3)
+					Animation.Stop(CharAnims, "StrafeRightForwards", 0.3)
+					Animation.Stop(CharAnims, "StrafeLeftBackwards", 0.3)
+					Animation.Stop(CharAnims, "StrafeLeftForwards", 0.3)
+					Animation.Stop(CharAnims, "Walk", 0.3)
+					Animation.Stop(CharAnims, "Run", 0.2)
+					Animation.Play(CharAnims, "Idle", 0.1)
 				end
 			else
 				if backwardsmult > 0 then

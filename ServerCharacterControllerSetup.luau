@@ -1,6 +1,8 @@
 local Players = game:GetService("Players")
 
 local function setupControllerManager(character)
+    -- Add a short delay to ensure the character is fully loaded
+    task.wait(0.1)
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if humanoid then
         humanoid.EvaluateStateMachine = false

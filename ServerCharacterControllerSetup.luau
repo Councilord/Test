@@ -22,6 +22,26 @@ local function setupControllerManager(character)
     groundSensor.UpdateType = Enum.SensorUpdateType.Manual
     groundSensor.Parent = controllerManager
     controllerManager.GroundSensor = groundSensor
+
+    -- Add per-foot sensors
+    local leftFoot = character:FindFirstChild("LeftFoot")
+    local rightFoot = character:FindFirstChild("RightFoot")
+    if leftFoot then
+        local leftSensor = Instance.new("ControllerPartSensor")
+        leftSensor.Name = "LeftFootSensor"
+        leftSensor.SensorMode = Enum.SensorMode.Floor
+        leftSensor.UpdateType = Enum.SensorUpdateType.Manual
+        leftSensor.Parent = controllerManager
+        controllerManager.LeftFootSensor = leftSensor
+    end
+    if rightFoot then
+        local rightSensor = Instance.new("ControllerPartSensor")
+        rightSensor.Name = "RightFootSensor"
+        rightSensor.SensorMode = Enum.SensorMode.Floor
+        rightSensor.UpdateType = Enum.SensorUpdateType.Manual
+        rightSensor.Parent = controllerManager
+        controllerManager.RightFootSensor = rightSensor
+    end
 end
 
 Players.PlayerAdded:Connect(function(player)

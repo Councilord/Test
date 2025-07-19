@@ -3074,31 +3074,50 @@ local function setupPhysicsController(char)
     if not controllerManager then return end
     local groundController = controllerManager:FindFirstChild("GroundController")
     local airController = controllerManager:FindFirstChild("AirController")
-    local groundSensor = controllerManager:FindFirstChild("GroundSensor")
     local humanoid = char:FindFirstChildOfClass("Humanoid")
     local root = char:FindFirstChild("HumanoidRootPart")
-    if not (groundController and airController and groundSensor and humanoid and root) then return end
+    local leftFoot = char:FindFirstChild("LeftFoot")
+    local rightFoot = char:FindFirstChild("RightFoot")
+    local leftSensor = controllerManager:FindFirstChild("LeftFootSensor")
+    local rightSensor = controllerManager:FindFirstChild("RightFootSensor")
+    if not (groundController and airController and humanoid and root and leftFoot and rightFoot and leftSensor and rightSensor) then return end
 
     RunService.RenderStepped:Connect(function()
         local rayParams = RaycastParams.new()
         rayParams.FilterDescendantsInstances = {char}
         rayParams.FilterType = Enum.RaycastFilterType.Exclude
-        local rayResult = workspace:Raycast(root.Position, Vector3.new(0, -4.5, 0), rayParams)
-        if rayResult then
-            groundSensor.SensedPart = rayResult.Instance
-            groundSensor.HitNormal = rayResult.Normal
-            groundSensor.HitFrame = CFrame.new(rayResult.Position)
-            controllerManager.ActiveController = groundController
-            humanoid:ChangeState(Enum.HumanoidStateType.Running)
-        else
-            controllerManager.ActiveController = airController
-            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+
+        -- Left foot
+        local leftRay = workspace:Raycast(leftFoot.Position, Vector3.new(0, -2, 0), rayParams)
+        if leftRay then
+            leftSensor.SensedPart = leftRay.Instance
+            leftSensor.HitNormal = leftRay.Normal
+            leftSensor.HitFrame = CFrame.new(leftRay.Position)
         end
+
+        -- Right foot
+        local rightRay = workspace:Raycast(rightFoot.Position, Vector3.new(0, -2, 0), rayParams)
+        if rightRay then
+            rightSensor.SensedPart = rightRay.Instance
+            rightSensor.HitNormal = rightRay.Normal
+            rightSensor.HitFrame = CFrame.new(rightRay.Position)
+        end
+
+        -- Set movement and facing direction
         controllerManager.MovingDirection = humanoid.MoveDirection
         if humanoid.MoveDirection.Magnitude > 0 then
             controllerManager.FacingDirection = humanoid.MoveDirection
         else
             controllerManager.FacingDirection = root.CFrame.LookVector
+        end
+
+        -- Activate controller
+        if leftRay or rightRay then
+            controllerManager.ActiveController = groundController
+            humanoid:ChangeState(Enum.HumanoidStateType.Running)
+        else
+            controllerManager.ActiveController = airController
+            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
         end
     end)
 end

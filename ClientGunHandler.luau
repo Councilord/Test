@@ -1,5 +1,5 @@
 -- Version print for debugging
-print("[ClientGunHandler] Version 0.5 loaded")
+print("[ClientGunHandler] Version 0.6 loaded")
 
 local Settings = {}
 local Network = {}
@@ -1073,6 +1073,80 @@ do
 		animatescript:Destroy()
 		Animation.StopAllAnimations()
 	end)
+
+	-- Roblox-native IKControl footplanting for R15 rigs
+	local footIK = {Left = nil, Right = nil}
+	local footTargets = {Left = nil, Right = nil}
+	local footUpdateConn = nil
+
+	local function setupFootIK(character)
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if not humanoid then return end
+
+		-- Clean up previous IKControls and targets
+		if footIK.Left then footIK.Left:Destroy() end
+		if footIK.Right then footIK.Right:Destroy() end
+		if footTargets.Left then footTargets.Left:Destroy() end
+		if footTargets.Right then footTargets.Right:Destroy() end
+		if footUpdateConn then footUpdateConn:Disconnect() end
+
+		local root = character:FindFirstChild("HumanoidRootPart")
+		local leftFoot = character:FindFirstChild("LeftFoot")
+		local rightFoot = character:FindFirstChild("RightFoot")
+		local leftUpperLeg = character:FindFirstChild("LeftUpperLeg")
+		local rightUpperLeg = character:FindFirstChild("RightUpperLeg")
+		if not (root and leftFoot and rightFoot and leftUpperLeg and rightUpperLeg) then return end
+
+		-- Create Attachments as IK targets
+		local leftTarget = Instance.new("Attachment")
+		leftTarget.Name = "LeftFootIKTarget"
+		leftTarget.Parent = root
+		local rightTarget = Instance.new("Attachment")
+		rightTarget.Name = "RightFootIKTarget"
+		rightTarget.Parent = root
+		footTargets.Left = leftTarget
+		footTargets.Right = rightTarget
+
+		-- Create IKControls
+		local leftIK = Instance.new("IKControl")
+		leftIK.Name = "LeftFootIKControl"
+		leftIK.Type = Enum.IKControlType.Position
+		leftIK.EndEffector = leftFoot
+		leftIK.ChainRoot = leftUpperLeg
+		leftIK.Target = leftTarget
+		leftIK.Parent = humanoid
+		leftIK.Priority = 1
+		leftIK.Enabled = true
+		footIK.Left = leftIK
+
+		local rightIK = Instance.new("IKControl")
+		rightIK.Name = "RightFootIKControl"
+		rightIK.Type = Enum.IKControlType.Position
+		rightIK.EndEffector = rightFoot
+		rightIK.ChainRoot = rightUpperLeg
+		rightIK.Target = rightTarget
+		rightIK.Parent = humanoid
+		rightIK.Priority = 1
+		rightIK.Enabled = true
+		footIK.Right = rightIK
+
+		-- Update foot targets each frame
+		footUpdateConn = RunService.RenderStepped:Connect(function()
+			for side, foot in pairs({Left = leftFoot, Right = rightFoot}) do
+				if foot and root and footTargets[side] then
+					local origin = foot.Position + Vector3.new(0, 0.5, 0)
+					local ray = Ray.new(origin, Vector3.new(0, -3, 0))
+					local hit, pos = workspace:FindPartOnRay(ray, character)
+					if hit then
+						footTargets[side].WorldPosition = pos + Vector3.new(0, 0.1, 0)
+					else
+						footTargets[side].WorldPosition = foot.Position
+					end
+				end
+			end
+		end)
+	end
+
 	function Char.Spawned(c)
 		spawn(function()
 			wait(1)
@@ -1126,10 +1200,8 @@ do
 			Char.Humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
 			Char.Humanoid:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, false)
 
-			-- Initialize IKLegsUpdated for footplanting
-			if IKLegsUpdated then
-				IKLegsUpdated.PlayerAdded(game.Players.LocalPlayer)
-			end
+			-- Setup Roblox-native IK footplanting
+			setupFootIK(Char.Character)
 		end)
 	end
 	--Char.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)

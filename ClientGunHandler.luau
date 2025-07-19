@@ -1,3 +1,6 @@
+-- Version print for debugging
+print("[ClientGunHandler] Version 0.1 loaded")
+
 local Settings = {}
 local Network = {}
 local Event = {}

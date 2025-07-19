@@ -4,6 +4,15 @@ local function setupControllerManager(character)
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if humanoid then
         humanoid.EvaluateStateMachine = false
+        humanoid.HealthChanged:Connect(function(health)
+            if health <= 0 then
+                local player = Players:GetPlayerFromCharacter(character)
+                if player then
+                    character:Destroy()
+                    player:LoadCharacter()
+                end
+            end
+        end)
     end
     local root = character:WaitForChild("HumanoidRootPart")
     local controllerManager = Instance.new("ControllerManager")

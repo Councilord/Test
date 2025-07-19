@@ -1,5 +1,5 @@
 -- Version print for debugging
-print("[ClientGunHandler] Version 0.4 loaded")
+print("[ClientGunHandler] Version 0.5 loaded")
 
 local Settings = {}
 local Network = {}
@@ -37,6 +37,8 @@ local Side = "Right"
 Blur.Name = "GunBlur"
 Blur.Size = 0
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+
+local IKLegsUpdated = require(game:GetService("Players").LocalPlayer.PlayerScripts:FindFirstChild("IKLegsUpdated") or script.Parent:FindFirstChild("IKLegsUpdated") or workspace:FindFirstChild("IKLegsUpdated") or "IKLegsUpdated")
 
 repeat
 	wait()
@@ -1123,6 +1125,11 @@ do
 			--Char.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)
 			Char.Humanoid:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics, false)
 			Char.Humanoid:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics, false)
+
+			-- Initialize IKLegsUpdated for footplanting
+			if IKLegsUpdated then
+				IKLegsUpdated.PlayerAdded(game.Players.LocalPlayer)
+			end
 		end)
 	end
 	--Char.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Climbing, false)

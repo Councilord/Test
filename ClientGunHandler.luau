@@ -1,5 +1,5 @@
 -- Version print for debugging
-print("[ClientGunHandler] Version 0.1 loaded")
+print("[ClientGunHandler] Version 0.2 loaded")
 
 local Settings = {}
 local Network = {}
@@ -1154,6 +1154,8 @@ do
 			end
 		end
 	end
+	-- State tracking for movement animation
+	local lastMovementAnim = nil
 	function Walk()
 		Char.SetSprint(false)
 		local FallSpeedMult = (Char.Falling or Char.Jumping or Char.Punching) and 0.4 or 1
@@ -1175,73 +1177,82 @@ do
 			if CharAnims.CrouchWalk.IsPlaying then
 				CharAnims.CrouchWalk:AdjustSpeed(Speed * 0.065 * backwardsmult)
 			end
+			lastMovementAnim = "CrouchWalk"
 		else
 			Char.SetWalkspeed(Char.DefaultWalkSpeed / 1.5 * FallSpeedMult)
 			Animation.Stop(CharAnims, "CrouchWalk")
 			if Aiming then
-				-- Stop all movement animations before playing a new one
-				Animation.Stop(CharAnims, "WalkBackwards", 0.2)
-				Animation.Stop(CharAnims, "StrafeRightBackwards", 0.2)
-				Animation.Stop(CharAnims, "StrafeRightForwards", 0.2)
-				Animation.Stop(CharAnims, "StrafeLeftBackwards", 0.2)
-				Animation.Stop(CharAnims, "StrafeLeftForwards", 0.2)
-				Animation.Stop(CharAnims, "Walk", 0.2)
-				Animation.Stop(CharAnims, "Run", 0.2)
-
-				if Speed > 0.05 then
-					local strafeAnim = nil
-					local reverse = 1
-					if Velocity.z > 0.15 then
-						reverse = -1
-					end
-					if Velocity.X > 0.05 then
-						if Velocity.Z > 0.15 then
-							strafeAnim = "StrafeRightBackwards"
-						else
-							strafeAnim = "StrafeRightForwards"
-						end
-					elseif Velocity.X < -0.05 then
-						if Velocity.Z > 0.15 then
-							strafeAnim = "StrafeLeftBackwards"
-						else
-							strafeAnim = "StrafeLeftForwards"
-						end
-					elseif Velocity.Z > 0.15 then
-						strafeAnim = "WalkBackwards"
+				local strafeAnim = nil
+				local reverse = 1
+				if Velocity.z > 0.15 then
+					reverse = -1
+				end
+				if Velocity.X > 0.05 then
+					if Velocity.Z > 0.15 then
+						strafeAnim = "StrafeRightBackwards"
 					else
-						strafeAnim = "Walk"
+						strafeAnim = "StrafeRightForwards"
 					end
-					if strafeAnim and CharAnims[strafeAnim] then
-						if not CharAnims[strafeAnim].IsPlaying then
-							Animation.Play(CharAnims, strafeAnim, 0.2)
-							CharAnims[strafeAnim].Looped = true
-						end
-						if CharAnims[strafeAnim].IsPlaying then
-							CharAnims[strafeAnim]:AdjustSpeed(Speed / 12 * reverse)
-							CharAnims[strafeAnim]:AdjustWeight(1)
-						end
+				elseif Velocity.X < -0.05 then
+					if Velocity.Z > 0.15 then
+						strafeAnim = "StrafeLeftBackwards"
+					else
+						strafeAnim = "StrafeLeftForwards"
+					end
+				elseif Velocity.Z > 0.15 then
+					strafeAnim = "WalkBackwards"
+				else
+					strafeAnim = "Walk"
+				end
+
+				if Speed > 0.05 and strafeAnim and CharAnims[strafeAnim] then
+					if lastMovementAnim ~= strafeAnim then
+						-- Stop all movement animations before playing a new one
+						Animation.Stop(CharAnims, "WalkBackwards", 0.2)
+						Animation.Stop(CharAnims, "StrafeRightBackwards", 0.2)
+						Animation.Stop(CharAnims, "StrafeRightForwards", 0.2)
+						Animation.Stop(CharAnims, "StrafeLeftBackwards", 0.2)
+						Animation.Stop(CharAnims, "StrafeLeftForwards", 0.2)
+						Animation.Stop(CharAnims, "Walk", 0.2)
+						Animation.Stop(CharAnims, "Run", 0.2)
+						Animation.Play(CharAnims, strafeAnim, 0.2)
+						CharAnims[strafeAnim].Looped = true
+						lastMovementAnim = strafeAnim
+					end
+					if CharAnims[strafeAnim].IsPlaying then
+						CharAnims[strafeAnim]:AdjustSpeed(Speed / 12 * reverse)
+						CharAnims[strafeAnim]:AdjustWeight(1)
 					end
 				else
-					Animation.Stop(CharAnims, "WalkBackwards", 0.3)
-					Animation.Stop(CharAnims, "StrafeRightBackwards", 0.3)
-					Animation.Stop(CharAnims, "StrafeRightForwards", 0.3)
-					Animation.Stop(CharAnims, "StrafeLeftBackwards", 0.3)
-					Animation.Stop(CharAnims, "StrafeLeftForwards", 0.3)
-					Animation.Stop(CharAnims, "Walk", 0.3)
-					Animation.Stop(CharAnims, "Run", 0.2)
-					Animation.Play(CharAnims, "Idle", 0.1)
+					if lastMovementAnim ~= nil then
+						Animation.Stop(CharAnims, "WalkBackwards", 0.3)
+						Animation.Stop(CharAnims, "StrafeRightBackwards", 0.3)
+						Animation.Stop(CharAnims, "StrafeRightForwards", 0.3)
+						Animation.Stop(CharAnims, "StrafeLeftBackwards", 0.3)
+						Animation.Stop(CharAnims, "StrafeLeftForwards", 0.3)
+						Animation.Stop(CharAnims, "Walk", 0.3)
+						Animation.Stop(CharAnims, "Run", 0.2)
+						Animation.Play(CharAnims, "Idle", 0.1)
+						lastMovementAnim = nil
+					end
 				end
 			else
 				if backwardsmult > 0 then
-					Animation.Play(CharAnims, "Walk", 0.5, 1.5)
-					Animation.Stop(CharAnims, "WalkBackwards")
+					if lastMovementAnim ~= "Walk" then
+						Animation.Play(CharAnims, "Walk", 0.5, 1.5)
+						Animation.Stop(CharAnims, "WalkBackwards")
+						lastMovementAnim = "Walk"
+					end
 					if CharAnims.Walk.IsPlaying then
 						CharAnims.Walk:AdjustSpeed(Speed / 16 + 0.5)
 						CharAnims.Walk:AdjustWeight(Speed / 16 * 1.5)
 					end
 				else
-					Animation.Play(CharAnims, "WalkBackwards", 1, 1.5)
-					Animation.Stop(CharAnims, "Walk")
+					if lastMovementAnim ~= "WalkBackwards" then
+						Animation.Play(CharAnims, "WalkBackwards", 1, 1.5)
+						Animation.Stop(CharAnims, "Walk")
+						lastMovementAnim = "WalkBackwards"
+					end
 					if CharAnims.WalkBackwards.IsPlaying then
 						CharAnims.WalkBackwards:AdjustSpeed(Speed / 16 + 1)
 						CharAnims.WalkBackwards:AdjustWeight(Speed / 16 * 1.5)

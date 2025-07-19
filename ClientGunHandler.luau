@@ -1,5 +1,5 @@
 -- Version print for debugging
-print("[ClientGunHandler] Version 0.7 (Added native R15 IK footplanting, unified framework) loaded")
+print("[ClientGunHandler] Version 0.8 (Physics Character Controllers footplanting integration)")
 
 local Settings = {}
 local Network = {}
@@ -3068,3 +3068,43 @@ do
 		--Char.Stepped
 	}
 end
+
+local function setupPhysicsController(char)
+    local controllerManager = char:FindFirstChild("ControllerManager")
+    if not controllerManager then return end
+    local groundController = controllerManager:FindFirstChild("GroundController")
+    local airController = controllerManager:FindFirstChild("AirController")
+    local groundSensor = controllerManager:FindFirstChild("GroundSensor")
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not (groundController and airController and groundSensor and humanoid and root) then return end
+
+    RunService.RenderStepped:Connect(function()
+        local rayParams = RaycastParams.new()
+        rayParams.FilterDescendantsInstances = {char}
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        local rayResult = workspace:Raycast(root.Position, Vector3.new(0, -4.5, 0), rayParams)
+        if rayResult then
+            groundSensor.SensedPart = rayResult.Instance
+            groundSensor.HitNormal = rayResult.Normal
+            groundSensor.HitFrame = CFrame.new(rayResult.Position)
+            controllerManager.ActiveController = groundController
+            humanoid:ChangeState(Enum.HumanoidStateType.Running)
+        else
+            controllerManager.ActiveController = airController
+            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+        end
+        controllerManager.MovingDirection = humanoid.MoveDirection
+        if humanoid.MoveDirection.Magnitude > 0 then
+            controllerManager.FacingDirection = humanoid.MoveDirection
+        else
+            controllerManager.FacingDirection = root.CFrame.LookVector
+        end
+    end)
+end
+
+-- In your character spawn logic, add:
+local player = game.Players.LocalPlayer
+player.CharacterAdded:Connect(function(char)
+    setupPhysicsController(char)
+end)

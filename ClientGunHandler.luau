@@ -3127,3 +3127,71 @@ local player = game.Players.LocalPlayer
 player.CharacterAdded:Connect(function(char)
     setupPhysicsController(char)
 end)
+
+local function setupVisualFootplanting(char)
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.RigType ~= Enum.HumanoidRigType.R15 then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local leftFoot = char:FindFirstChild("LeftFoot")
+    local rightFoot = char:FindFirstChild("RightFoot")
+    if not (root and leftFoot and rightFoot) then return end
+
+    -- Clean up old IKControls/targets if present
+    for _, name in ipairs({"LeftFootIKControl", "RightFootIKControl", "LeftFootIKTarget", "RightFootIKTarget"}) do
+        local obj = humanoid:FindFirstChild(name) or root:FindFirstChild(name)
+        if obj then obj:Destroy() end
+    end
+
+    -- Create Attachments as IK targets
+    local leftTarget = Instance.new("Attachment")
+    leftTarget.Name = "LeftFootIKTarget"
+    leftTarget.Parent = root
+    local rightTarget = Instance.new("Attachment")
+    rightTarget.Name = "RightFootIKTarget"
+    rightTarget.Parent = root
+
+    -- Create IKControls
+    local leftIK = Instance.new("IKControl")
+    leftIK.Name = "LeftFootIKControl"
+    leftIK.Type = Enum.IKControlType.Position
+    leftIK.EndEffector = leftFoot
+    leftIK.ChainRoot = char:FindFirstChild("LeftUpperLeg")
+    leftIK.Target = leftTarget
+    leftIK.Parent = humanoid
+    leftIK.Priority = 1
+    leftIK.Enabled = true
+
+    local rightIK = Instance.new("IKControl")
+    rightIK.Name = "RightFootIKControl"
+    rightIK.Type = Enum.IKControlType.Position
+    rightIK.EndEffector = rightFoot
+    rightIK.ChainRoot = char:FindFirstChild("RightUpperLeg")
+    rightIK.Target = rightTarget
+    rightIK.Parent = humanoid
+    rightIK.Priority = 1
+    rightIK.Enabled = true
+
+    -- Update foot targets each frame
+    local conn = RunService.RenderStepped:Connect(function()
+        for side, foot in pairs({Left = leftFoot, Right = rightFoot}) do
+            local target = (side == "Left") and leftTarget or rightTarget
+            if foot and root and target then
+                local origin = foot.Position + Vector3.new(0, 0.5, 0)
+                local ray = Ray.new(origin, Vector3.new(0, -3, 0))
+                local hit, pos = workspace:FindPartOnRay(ray, char)
+                if hit then
+                    target.WorldPosition = pos + Vector3.new(0, 0.1, 0)
+                else
+                    target.WorldPosition = foot.Position
+                end
+            end
+        end
+    end)
+    -- Optionally store conn for cleanup if needed
+end
+
+-- Call this in your character spawn logic:
+local player = game.Players.LocalPlayer
+player.CharacterAdded:Connect(function(char)
+    setupVisualFootplanting(char)
+end)

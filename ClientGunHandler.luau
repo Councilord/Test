@@ -1,5 +1,5 @@
 -- Version print for debugging
-print("[ClientGunHandler] Version 0.2 loaded")
+print("[ClientGunHandler] Version 0.3 loaded")
 
 local Settings = {}
 local Network = {}
@@ -1156,6 +1156,8 @@ do
 	end
 	-- State tracking for movement animation
 	local lastMovementAnim = nil
+	local lastAimingState = nil
+
 	function Walk()
 		Char.SetSprint(false)
 		local FallSpeedMult = (Char.Falling or Char.Jumping or Char.Punching) and 0.4 or 1
@@ -1165,6 +1167,24 @@ do
 		if Velocity.z > 0.15 then
 			backwardsmult = -1
 		end
+
+		-- Always play aiming animation if aiming
+		if Aiming then
+			if lastAimingState ~= true then
+				if CharAnims.Aim and not CharAnims.Aim.IsPlaying then
+					Animation.Play(CharAnims, "Aim", 0.1)
+				end
+				lastAimingState = true
+			end
+		else
+			if lastAimingState ~= false then
+				if CharAnims.Aim and CharAnims.Aim.IsPlaying then
+					Animation.Stop(CharAnims, "Aim", 0.1)
+				end
+				lastAimingState = false
+			end
+		end
+
 		if Char.Crouching and not Char.Sprinting then
 			Char.SetWalkspeed(Char.CrouchWalkSpeed * FallSpeedMult)
 			Animation.Stop(CharAnims, "Walk")
@@ -1220,7 +1240,12 @@ do
 						lastMovementAnim = strafeAnim
 					end
 					if CharAnims[strafeAnim].IsPlaying then
-						CharAnims[strafeAnim]:AdjustSpeed(Speed / 12 * reverse)
+						-- Fix slow-motion for WalkBackwards
+						if strafeAnim == "WalkBackwards" then
+							CharAnims[strafeAnim]:AdjustSpeed(Speed / 8 * reverse)
+						else
+							CharAnims[strafeAnim]:AdjustSpeed(Speed / 12 * reverse)
+						end
 						CharAnims[strafeAnim]:AdjustWeight(1)
 					end
 				else
@@ -1254,7 +1279,8 @@ do
 						lastMovementAnim = "WalkBackwards"
 					end
 					if CharAnims.WalkBackwards.IsPlaying then
-						CharAnims.WalkBackwards:AdjustSpeed(Speed / 16 + 1)
+						-- Fix slow-motion for WalkBackwards
+						CharAnims.WalkBackwards:AdjustSpeed(Speed / 8 + 1)
 						CharAnims.WalkBackwards:AdjustWeight(Speed / 16 * 1.5)
 					end
 				end

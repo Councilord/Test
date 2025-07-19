@@ -38,7 +38,6 @@ Blur.Name = "GunBlur"
 Blur.Size = 0
 StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 
-local IKLegsUpdated = require(game:GetService("Players").LocalPlayer.PlayerScripts:FindFirstChild("IKLegsUpdated") or script.Parent:FindFirstChild("IKLegsUpdated") or workspace:FindFirstChild("IKLegsUpdated") or "IKLegsUpdated")
 
 repeat
 	wait()

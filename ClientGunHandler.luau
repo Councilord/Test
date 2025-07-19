@@ -1,5 +1,5 @@
 -- Version print for debugging
-print("[ClientGunHandler] Version 0.6 loaded")
+print("[ClientGunHandler] Version 0.7 (Added native R15 IK footplanting, unified framework) loaded")
 
 local Settings = {}
 local Network = {}

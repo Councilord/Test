@@ -1,4 +1,4 @@
--- VERSION: 1.4.0 (auto-incremented)
+-- VERSION: 1.5.0 (auto-incremented)
 -- THIS IS A RAGDOLL CILENT
 -- EUPHORIA RAGDOLL V0.1 MADE BY PS_LOL2020
 
@@ -9,7 +9,7 @@
 
 wait(0.5) -- starts
 
-local VERSION = "1.4.0"
+local VERSION = "1.5.0"
 
 local USERINPUT = game:GetService("UserInputService")
 local char = script.Parent
@@ -21,29 +21,22 @@ parasm.FilterDescendantsInstances = {char}
 
 -- Auto ragdoll on death
 hum.Died:Connect(function()
-	print("Character died - activating ragdoll")
 	script.ragdoll.Value = true
 	startShake(2) -- strong shake on death
 
 	BALANCE = false -- Disable balancing on death
 	ONLYBALANCEONETIME = false
 
-	-- Clean up ragdoll state after respawn delay
-	-- Let Roblox handle respawn naturally
 	local function waitForRespawn()
-		-- Wait for new character to spawn
 		local player = game:GetService("Players").LocalPlayer
 		if player then
 			player.CharacterAdded:Connect(function()
-				print("Character respawned - resetting ragdoll state")
-				-- Reset ragdoll state for new character
 				if script:FindFirstChild("ragdoll") then
 					script.ragdoll.Value = false
 				end
 			end)
 		end
 	end
-	-- Start respawn monitoring
 	waitForRespawn()
 end)
 
@@ -62,7 +55,6 @@ local function startShake(mag, duration)
 	shakeMag = math.max(shakeMag, mag)
 	shakeDuration = duration or 0.3
 	shakeTime = 0
-	print("Camera shake started with magnitude:", mag, "duration:", shakeDuration, "Total shake:", shakeMag)
 end
 
 -- Trigger shake whenever ragdoll becomes true
@@ -630,10 +622,8 @@ game:GetService("RunService").RenderStepped:Connect(function()
 		local currentlyGrounded = RAYHEIGHT ~= nil
 		if currentlyGrounded and not onGroundPrev then
 			local impactVel = char:FindFirstChild("UpperTorso").Velocity.Magnitude
-			-- GTA-style: strong, short shake for hard landings, softer for light
 			local shakeAmount = math.clamp(impactVel/12, 1, 10)
 			local shakeDur = math.clamp(impactVel/40, 0.15, 0.5)
-			print("Landing impact! Velocity:", impactVel, "Shake amount:", shakeAmount, "Duration:", shakeDur)
 			startShake(shakeAmount, shakeDur)
 		end
 		onGroundPrev = currentlyGrounded

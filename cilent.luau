@@ -51,11 +51,15 @@ local Camera = workspace.CurrentCamera
 local baseCamOffset = Vector3.new(0.55,0,0)
 local shakeMag = 0 -- current shake magnitude
 local shakeDecay = 0.85 -- how quickly shake fades each frame (slower decay = longer shake)
+local shakeDuration = 0 -- how long the shake should last
+local shakeTime = 0 -- timer for shake
 local onGroundPrev = false -- tracks if ragdoll was on ground last frame
 
-local function startShake(mag)
+local function startShake(mag, duration)
 	shakeMag = math.max(shakeMag, mag)
-	print("Camera shake started with magnitude:", mag, "Total shake:", shakeMag)
+	shakeDuration = duration or 0.3
+	shakeTime = 0
+	print("Camera shake started with magnitude:", mag, "duration:", shakeDuration, "Total shake:", shakeMag)
 end
 
 -- Trigger shake whenever ragdoll becomes true
@@ -444,20 +448,35 @@ game:GetService("RunService").RenderStepped:Connect(function()
 
 	-- cam offset with procedural camera shake
 	local shakeOffset = Vector3.new()
-	if shakeMag > 0.01 then
-		shakeOffset = Vector3.new((math.random()-0.5)*8*shakeMag,(math.random()-0.5)*8*shakeMag,(math.random()-0.5)*4*shakeMag)
-		shakeMag = shakeMag * shakeDecay
-		if shakeMag > 0.1 then -- debug print when shake is significant
-			print("Shaking camera:", shakeOffset, "Magnitude:", shakeMag)
+	if shakeMag > 0.01 and shakeTime < shakeDuration then
+		-- GTA-style: more intense, rapid shake at start, then fade
+		local intensity = shakeMag * (1 - (shakeTime/shakeDuration))
+		shakeOffset = Vector3.new(
+			(math.random()-0.5)*16*intensity,
+			(math.random()-0.5)*12*intensity,
+			(math.random()-0.5)*8*intensity
+		)
+		shakeTime = shakeTime + (game:GetService("RunService").RenderStepped:Wait() or 1/60)
+		if shakeTime >= shakeDuration then
+			shakeMag = 0
+			shakeDuration = 0
+			shakeTime = 0
 		end
+	else
+		shakeMag = shakeMag * shakeDecay
 	end
 	hum.CameraOffset = baseCamOffset + shakeOffset
 	
 	-- Direct camera shake to bypass Humanoid.CameraOffset limitations
 	if Camera.CameraType == Enum.CameraType.Custom then
 		local camShake = Vector3.new()
-		if shakeMag > 0.01 then
-			camShake = Vector3.new((math.random()-0.5)*0.1*shakeMag,(math.random()-0.5)*0.1*shakeMag,(math.random()-0.5)*0.05*shakeMag)
+		if shakeMag > 0.01 and shakeTime < shakeDuration then
+			local intensity = shakeMag * (1 - (shakeTime/shakeDuration))
+			camShake = Vector3.new(
+				(math.random()-0.5)*0.2*intensity,
+				(math.random()-0.5)*0.2*intensity,
+				(math.random()-0.5)*0.1*intensity
+			)
 			Camera.CFrame = Camera.CFrame * CFrame.new(camShake)
 		end
 	end
@@ -550,9 +569,11 @@ game:GetService("RunService").RenderStepped:Connect(function()
 		local currentlyGrounded = RAYHEIGHT ~= nil
 		if currentlyGrounded and not onGroundPrev then
 			local impactVel = char:FindFirstChild("UpperTorso").Velocity.Magnitude
-			local shakeAmount = math.clamp(impactVel/15,1,6) -- even more sensitive and stronger
-			print("Landing impact! Velocity:", impactVel, "Shake amount:", shakeAmount)
-			startShake(shakeAmount)
+			-- GTA-style: strong, short shake for hard landings, softer for light
+			local shakeAmount = math.clamp(impactVel/12, 1, 10)
+			local shakeDur = math.clamp(impactVel/40, 0.15, 0.5)
+			print("Landing impact! Velocity:", impactVel, "Shake amount:", shakeAmount, "Duration:", shakeDur)
+			startShake(shakeAmount, shakeDur)
 		end
 		onGroundPrev = currentlyGrounded
 	else
@@ -1219,11 +1240,6 @@ game:GetService("RunService").RenderStepped:Connect(function()
 
 		task.wait(FallTimeLoop)
 
-		FallKneeRotationCurrent = FallKneeRotationCurrent - FallKneeRotation
-		FallKneeRotationCurrent2 = FallKneeRotationCurrent2 + FallKneeRotation
-
-		task.wait(FallTimeLoop)
-
 		falldontloop = false
 	end
 end)
@@ -1407,13 +1423,6 @@ while task.wait(BalanceWalkTimeLoop) do
 	BalanceFootStepCurrentDist = BalanceFootStepCurrentDist - BalanceFootStepDist
 
 	BalanceFootStepCurrentDistHeight2 = BalanceFootStepCurrentDistHeight2 - BalanceFootStepDistHeight
-
-	BalanceFootStepCurrentDistHeight = BalanceFootStepCurrentDistHeight - BalanceFootStepDistHeight
-
-	task.wait(BalanceWalkTimeLoop)
-	BalanceFootStepCurrentDist = BalanceFootStepCurrentDist - BalanceFootStepDist
-
-	BalanceFootStepCurrentDistHeight2 = BalanceFootStepCurrentDistHeight2 + BalanceFootStepDistHeight
 
 	BalanceFootStepCurrentDistHeight = BalanceFootStepCurrentDistHeight - BalanceFootStepDistHeight
 

@@ -275,99 +275,66 @@ hum:GetPropertyChangedSignal("Parent"):Connect(function()
 	setupIKControls()
 end)
 
+-- Helper: get feet positions
+local function getFeetPositions()
+    return leftFootIK.Target.Position, rightFootIK.Target.Position
+end
+
+-- Helper: get support midpoint
+local function getSupportMid()
+    local l, r = getFeetPositions()
+    return (l + r) / 2
+end
+
+-- Helper: get COM projected on ground
+local function getCOMGround(root, y)
+    return Vector3.new(root.Position.X, y, root.Position.Z)
+end
+
+local stepCooldown = 0
+local lastStepLeft = true
+
 RunService.Heartbeat:Connect(function(dt)
-	if script.ragdoll.Value == true and BALANCE == true and upperBG.Parent and lowerBG.Parent then
-		local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso")
-		if root then
-			-- Calculate upright vector and deviation
-			local up = root.CFrame.UpVector
-			local deviation = up:Cross(Vector3.new(0,1,0))
-			local angle = math.acos(math.clamp(up:Dot(Vector3.new(0,1,0)), -1, 1))
+    if script.ragdoll.Value == true and BALANCE == true and upperBG.Parent and lowerBG.Parent then
+        local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso")
+        if root and leftFootIK and rightFootIK then
+            leftFootIK.Enabled = true
+            rightFootIK.Enabled = true
 
-			-- Spring force: proportional to angle
-			local springTorque = Vector3.new(0,0,0)
-			if deviation.Magnitude > 0 then
-				springTorque = deviation.Unit * angle * SPRING_STIFFNESS
-			end
+            -- Get positions
+            local leftPos, rightPos = getFeetPositions()
+            local supportMid = (leftPos + rightPos) / 2
+            local comGround = getCOMGround(root, leftPos.Y)
 
-			-- Damping: proportional to angular velocity
-			local angularVel = root.RotVelocity
-			local dampingTorque = -angularVel * DAMPING
+            -- Aim torso toward supportMid
+            local lookVec = (supportMid - root.Position)
+            if lookVec.Magnitude > 0.1 then
+                local upright = Vector3.new(0, 1, 0)
+                local targetCF = CFrame.new(root.Position, supportMid + upright)
+                upperBG.CFrame = targetCF
+                lowerBG.CFrame = targetCF
+            end
 
-			-- Random instability
-			local randomTorque = Vector3.new(
-				(math.random()-0.5)*2*RANDOM_TORQUE,
-				0,
-				(math.random()-0.5)*2*RANDOM_TORQUE
-			)
-
-			-- Total torque
-			local totalTorque = springTorque + dampingTorque + randomTorque
-
-			-- Apply to BodyGyro (upperBG and lowerBG)
-			upperBG.MaxTorque = Vector3.new(50000, 0, 50000)
-			upperBG.D = 0 -- Let us handle damping
-			-- Set CFrame upright
-			upperBG.CFrame = CFrame.new(root.Position, root.Position + Vector3.new(0,1,0))
-			-- Optionally, you can apply torque directly if you use constraints
-
-			lowerBG.MaxTorque = Vector3.new(50000, 0, 50000)
-			lowerBG.D = 0
-			lowerBG.CFrame = CFrame.new(root.Position, root.Position + Vector3.new(0,1,0))
-		end
-		if leftFootIK and rightFootIK then
-			leftFootIK.Enabled = true
-			rightFootIK.Enabled = true
-
-			if leftFootIK and rightFootIK then
-				leftFootIK.Enabled = true
-				rightFootIK.Enabled = true
-
-				-- Project root position onto ground
-				local rayOrigin = root.Position
-				local rayDir = Vector3.new(0, -5, 0)
-				local rayResult = workspace:Raycast(rayOrigin, rayDir, parasm)
-				local groundY = rayResult and rayResult.Position.Y or (root.Position.Y - hum.HipHeight)
-
-				-- Calculate COM (use root for simplicity)
-				local com = root.Position
-
-				-- Get current foot positions
-				local leftFootPos = leftFootIK.Target.Position
-				local rightFootPos = rightFootIK.Target.Position
-				local feetMid = (leftFootPos + rightFootPos) / 2
-
-				-- Vector from feet midpoint to COM
-				local toCOM = Vector3.new(com.X, groundY, com.Z) - Vector3.new(feetMid.X, groundY, feetMid.Z)
-				local stanceWidth = 0.5
-
-				-- Use the projected velocity to determine step direction and widen stance if falling
-				local velocity = root.Velocity
-				local horizontalVel = Vector3.new(velocity.X, 0, velocity.Z)
-				local velMag = horizontalVel.Magnitude
-				local stepThreshold = 0.5 + math.clamp(velMag * 0.04, 0, 0.5) -- wider stance if moving fast
-				local maxStep = 1.5
-
-				local stepDir = Vector3.new(0, 0, 0)
-				if velMag > 0.1 then
-					stepDir = horizontalVel.Unit * math.min(velMag * 0.08, maxStep)
-				end
-
-				-- If COM is outside support area, move both feet in that direction
-				if toCOM.Magnitude > stepThreshold then
-					leftFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(-stanceWidth, 0, 0) + stepDir
-					rightFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(stanceWidth, 0, 0) + stepDir
-				else
-					-- Keep feet under body, slightly apart, and step in direction of movement
-					leftFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(-stanceWidth, 0, 0) + stepDir
-					rightFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(stanceWidth, 0, 0) + stepDir
-				end
-			end
-		end
-	else
-		if leftFootIK then leftFootIK.Enabled = false end
-		if rightFootIK then rightFootIK.Enabled = false end
-	end
+            -- Step logic
+            stepCooldown = math.max(0, stepCooldown - dt)
+            local toCOM = comGround - supportMid
+            local stepThreshold = 1.0
+            if toCOM.Magnitude > stepThreshold and stepCooldown == 0 then
+                -- Step with the foot furthest from COM
+                if lastStepLeft then
+                    rightFootIK.Target.Position = comGround + Vector3.new(0.5, 0, 0)
+                    lastStepLeft = false
+                else
+                    leftFootIK.Target.Position = comGround + Vector3.new(-0.5, 0, 0)
+                    lastStepLeft = true
+                end
+                stepCooldown = 0.25 -- 0.25s between steps
+            end
+        end
+    else
+        if leftFootIK then leftFootIK.Enabled = false end
+        if rightFootIK then rightFootIK.Enabled = false end
+    end
 end)
 
 

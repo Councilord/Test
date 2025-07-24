@@ -286,6 +286,15 @@ end
 local stepCooldown = 0
 local lastStepLeft = true
 
+-- VectorForce-based balancing setup
+local root = char:FindFirstChild("HumanoidRootPart")
+local balanceForce = Instance.new("VectorForce")
+balanceForce.Name = "BalanceForce"
+balanceForce.Attachment0 = Instance.new("Attachment", root)
+balanceForce.Force = Vector3.new(0,0,0)
+balanceForce.RelativeTo = Enum.ActuatorRelativeTo.World
+balanceForce.Parent = root
+
 RunService.Heartbeat:Connect(function(dt)
     if script.ragdoll.Value == true and BALANCE == true and upperBG.Parent and lowerBG.Parent then
         local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso")
@@ -294,9 +303,9 @@ RunService.Heartbeat:Connect(function(dt)
             rightFootIK.Enabled = true
 
             -- Get positions
-            local leftPos, rightPos = getFeetPositions()
+            local leftPos, rightPos = leftFootIK.Target.Position, rightFootIK.Target.Position
             local supportMid = (leftPos + rightPos) / 2
-            local comGround = getCOMGround(root, leftPos.Y)
+            local comGround = Vector3.new(root.Position.X, leftPos.Y, root.Position.Z)
 
             -- Aim torso toward supportMid
             local lookVec = (supportMid - root.Position)
@@ -307,12 +316,17 @@ RunService.Heartbeat:Connect(function(dt)
                 lowerBG.CFrame = targetCF
             end
 
+            -- VectorForce: pull torso toward supportMid
+            local forceDir = (supportMid - root.Position)
+            forceDir = Vector3.new(forceDir.X, 0, forceDir.Z)
+            local forceStrength = 2500 -- Tune for your rig
+            balanceForce.Force = forceDir * forceStrength
+
             -- Step logic
             stepCooldown = math.max(0, stepCooldown - dt)
             local toCOM = comGround - supportMid
             local stepThreshold = 1.0
             if toCOM.Magnitude > stepThreshold and stepCooldown == 0 then
-                -- Step with the foot furthest from COM
                 if lastStepLeft then
                     rightFootIK.Target.Position = comGround + Vector3.new(0.5, 0, 0)
                     lastStepLeft = false
@@ -320,12 +334,13 @@ RunService.Heartbeat:Connect(function(dt)
                     leftFootIK.Target.Position = comGround + Vector3.new(-0.5, 0, 0)
                     lastStepLeft = true
                 end
-                stepCooldown = 0.25 -- 0.25s between steps
+                stepCooldown = 0.25
             end
         end
     else
         if leftFootIK then leftFootIK.Enabled = false end
         if rightFootIK then rightFootIK.Enabled = false end
+        if balanceForce then balanceForce.Force = Vector3.new(0,0,0) end
     end
 end)
 

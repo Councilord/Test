@@ -1429,6 +1429,33 @@ char:FindFirstChildOfClass("Humanoid").Touched:Connect(function(hit)
 	end
 end)
 
+local originalDensities = {}
+
+local function setCharacterDensity(density)
+    for _, part in ipairs(char:GetChildren()) do
+        if part:IsA("MeshPart") then
+            if not originalDensities[part] then
+                originalDensities[part] = part.CustomPhysicalProperties and part.CustomPhysicalProperties.Density or 1
+            end
+            local props = part.CustomPhysicalProperties or PhysicalProperties.new(1,0.3,0.5)
+            part.CustomPhysicalProperties = PhysicalProperties.new(density, props.Friction, props.Elasticity, props.FrictionWeight, props.ElasticityWeight)
+        end
+    end
+end
+
+script.ragdoll:GetPropertyChangedSignal("Value"):Connect(function()
+    if script.ragdoll.Value == true then
+        setCharacterDensity(0.25) -- lighter ragdoll
+    else
+        for _, part in ipairs(char:GetChildren()) do
+            if part:IsA("MeshPart") and originalDensities[part] then
+                local props = part.CustomPhysicalProperties or PhysicalProperties.new(1,0.3,0.5)
+                part.CustomPhysicalProperties = PhysicalProperties.new(originalDensities[part], props.Friction, props.Elasticity, props.FrictionWeight, props.ElasticityWeight)
+            end
+        end
+    end
+end)
+
 while task.wait(BalanceWalkTimeLoop) do
 	CurrentWideLeg = math.random(65,105) * 0.01
 

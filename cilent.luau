@@ -325,25 +325,25 @@ RunService.Heartbeat:Connect(function(dt)
 			-- Calculate COM (use root for simplicity)
 			local com = root.Position
 
-			-- Calculate body tilt direction
-			local tilt = root.CFrame.LookVector * root.Velocity.Z + root.CFrame.RightVector * root.Velocity.X
+			-- Get current foot positions
+			local leftFootPos = leftFootIK.Target.Position
+			local rightFootPos = rightFootIK.Target.Position
+			local feetMid = (leftFootPos + rightFootPos) / 2
 
-			-- Step offset: step in the direction of tilt, or toward COM
-			local stepOffset = Vector3.new(0, 0, 0)
-			if tilt.Magnitude > 0.1 then
-				stepOffset = tilt.Unit * math.clamp(tilt.Magnitude, 0, 1) * 0.7
-			end
+			-- Vector from feet midpoint to COM
+			local toCOM = Vector3.new(com.X, groundY, com.Z) - Vector3.new(feetMid.X, groundY, feetMid.Z)
+			local stepThreshold = 0.7 -- how far COM can move before stepping
+			local stanceWidth = 0.5
 
-			-- Alternate feet for stepping
-			local stepTime = tick() % 1
-			local leftOffset = Vector3.new(-0.5, 0, 0)
-			local rightOffset = Vector3.new(0.5, 0, 0)
-			if stepTime < 0.5 then
-				leftFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + leftOffset + stepOffset
-				rightFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + rightOffset
+			-- If COM is outside support area, move both feet in that direction
+			if toCOM.Magnitude > stepThreshold then
+				local stepDir = toCOM.Unit * math.min(toCOM.Magnitude, 1)
+				leftFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(-stanceWidth, 0, 0) + stepDir
+				rightFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(stanceWidth, 0, 0) + stepDir
 			else
-				leftFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + leftOffset
-				rightFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + rightOffset + stepOffset
+				-- Keep feet under body, slightly apart
+				leftFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(-stanceWidth, 0, 0)
+				rightFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(stanceWidth, 0, 0)
 			end
 		end
 	else

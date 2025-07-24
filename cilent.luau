@@ -225,40 +225,49 @@ local lowerAO = makeAO("LOWERAO", lowerAttach)
 
 -- continually update the target orientation while balancing
 local RunService = game:GetService("RunService")
-RunService.Heartbeat:Connect(function()
+local SPRING_STIFFNESS = 350 -- Tune for realism
+local DAMPING = 60 -- Tune for realism
+local RANDOM_TORQUE = 10 -- Small random torque for instability
+
+RunService.Heartbeat:Connect(function(dt)
 	if script.ragdoll.Value == true and BALANCE == true and upperBG.Parent and lowerBG.Parent then
 		local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso")
 		if root then
-			local flatLook = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-			if flatLook.Magnitude < 1e-3 then
-				flatLook = Vector3.new(0, 0, -1) 
+			-- Calculate upright vector and deviation
+			local up = root.CFrame.UpVector
+			local deviation = up:Cross(Vector3.new(0,1,0))
+			local angle = math.acos(math.clamp(up:Dot(Vector3.new(0,1,0)), -1, 1))
+
+			-- Spring force: proportional to angle
+			local springTorque = Vector3.new(0,0,0)
+			if deviation.Magnitude > 0 then
+				springTorque = deviation.Unit * angle * SPRING_STIFFNESS
 			end
-			flatLook = flatLook.Unit
-			local targetCF = CFrame.new(root.Position, root.Position + flatLook)
 
-			-- Add a small random sway for realism
-			local sway = CFrame.Angles(
-				math.rad(math.random(-1,1) * 0.5),
-				math.rad(math.random(-1,1) * 0.5),
-				math.rad(math.random(-1,1) * 0.5)
+			-- Damping: proportional to angular velocity
+			local angularVel = root.RotVelocity
+			local dampingTorque = -angularVel * DAMPING
+
+			-- Random instability
+			local randomTorque = Vector3.new(
+				(math.random()-0.5)*2*RANDOM_TORQUE,
+				0,
+				(math.random()-0.5)*2*RANDOM_TORQUE
 			)
-			targetCF = targetCF * sway
-			
-			upperBG.CFrame = targetCF
-			lowerBG.CFrame = targetCF
-			upperAO.CFrame = targetCF
-			lowerAO.CFrame = targetCF
 
-			local tiltDot = root.CFrame.UpVector:Dot(Vector3.new(0,1,0))
-			local tiltFactor = math.clamp(1 - tiltDot, 0, 1)
-			local dynamicTorque = math.clamp(BalanceMaxForce + (BalanceMaxForce * 3) * tiltFactor, 0, 500)
+			-- Total torque
+			local totalTorque = springTorque + dampingTorque + randomTorque
 
-			upperBG.MaxTorque = Vector3.new(dynamicTorque,dynamicTorque,dynamicTorque)
-			lowerBG.MaxTorque = Vector3.new(dynamicTorque,dynamicTorque,dynamicTorque)
-			upperAO.MaxTorque  = dynamicTorque
-			lowerAO.MaxTorque  = dynamicTorque
-			upperAO.Responsiveness = 80
-			lowerAO.Responsiveness = 80
+			-- Apply to BodyGyro (upperBG and lowerBG)
+			upperBG.MaxTorque = Vector3.new(50000, 0, 50000)
+			upperBG.D = 0 -- Let us handle damping
+			-- Set CFrame upright
+			upperBG.CFrame = CFrame.new(root.Position, root.Position + Vector3.new(0,1,0))
+			-- Optionally, you can apply torque directly if you use constraints
+
+			lowerBG.MaxTorque = Vector3.new(50000, 0, 50000)
+			lowerBG.D = 0
+			lowerBG.CFrame = CFrame.new(root.Position, root.Position + Vector3.new(0,1,0))
 		end
 	end
 end)
@@ -1215,11 +1224,6 @@ game:GetService("RunService").RenderStepped:Connect(function()
 
 		task.wait(FallTimeLoop)
 
-		FallKneeRotationCurrent = FallKneeRotationCurrent - FallKneeRotation
-		FallKneeRotationCurrent2 = FallKneeRotationCurrent2 + FallKneeRotation
-
-		task.wait(FallTimeLoop)
-
 		falldontloop = false
 	end
 end)
@@ -1403,13 +1407,6 @@ while task.wait(BalanceWalkTimeLoop) do
 	BalanceFootStepCurrentDist = BalanceFootStepCurrentDist - BalanceFootStepDist
 
 	BalanceFootStepCurrentDistHeight2 = BalanceFootStepCurrentDistHeight2 - BalanceFootStepDistHeight
-
-	BalanceFootStepCurrentDistHeight = BalanceFootStepCurrentDistHeight - BalanceFootStepDistHeight
-
-	task.wait(BalanceWalkTimeLoop)
-	BalanceFootStepCurrentDist = BalanceFootStepCurrentDist - BalanceFootStepDist
-
-	BalanceFootStepCurrentDistHeight2 = BalanceFootStepCurrentDistHeight2 + BalanceFootStepDistHeight
 
 	BalanceFootStepCurrentDistHeight = BalanceFootStepCurrentDistHeight - BalanceFootStepDistHeight
 

@@ -312,20 +312,38 @@ RunService.Heartbeat:Connect(function(dt)
 			lowerBG.D = 0
 			lowerBG.CFrame = CFrame.new(root.Position, root.Position + Vector3.new(0,1,0))
 		end
-		-- Enable IKControl for feet and simulate stepping
 		if leftFootIK and rightFootIK then
 			leftFootIK.Enabled = true
 			rightFootIK.Enabled = true
-			-- Simulate walking: alternate foot targets forward/backward
+
+			-- Project root position onto ground
+			local rayOrigin = root.Position
+			local rayDir = Vector3.new(0, -5, 0)
+			local rayResult = workspace:Raycast(rayOrigin, rayDir, parasm)
+			local groundY = rayResult and rayResult.Position.Y or (root.Position.Y - hum.HipHeight)
+
+			-- Calculate COM (use root for simplicity)
+			local com = root.Position
+
+			-- Calculate body tilt direction
+			local tilt = root.CFrame.LookVector * root.Velocity.Z + root.CFrame.RightVector * root.Velocity.X
+
+			-- Step offset: step in the direction of tilt, or toward COM
+			local stepOffset = Vector3.new(0, 0, 0)
+			if tilt.Magnitude > 0.1 then
+				stepOffset = tilt.Unit * math.clamp(tilt.Magnitude, 0, 1) * 0.7
+			end
+
+			-- Alternate feet for stepping
 			local stepTime = tick() % 1
-			local stepDist = 0.5
-			local baseY = char:FindFirstChild("HumanoidRootPart").Position.Y - hum.HipHeight
+			local leftOffset = Vector3.new(-0.5, 0, 0)
+			local rightOffset = Vector3.new(0.5, 0, 0)
 			if stepTime < 0.5 then
-				leftFootIK.Target.Position = Vector3.new(-0.5, baseY, 0.3)
-				rightFootIK.Target.Position = Vector3.new(0.5, baseY, -0.3)
+				leftFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + leftOffset + stepOffset
+				rightFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + rightOffset
 			else
-				leftFootIK.Target.Position = Vector3.new(-0.5, baseY, -0.3)
-				rightFootIK.Target.Position = Vector3.new(0.5, baseY, 0.3)
+				leftFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + leftOffset
+				rightFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + rightOffset + stepOffset
 			end
 		end
 	else

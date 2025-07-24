@@ -233,6 +233,45 @@ local SPRING_STIFFNESS = 350 -- Tune for realism
 local DAMPING = 60 -- Tune for realism
 local RANDOM_TORQUE = 10 -- Small random torque for instability
 
+-- IKControl setup for R15 feet
+local leftFootIK = nil
+local rightFootIK = nil
+
+local function setupIKControls()
+	if not hum:FindFirstChild("Animator") then return end
+	-- Clean up old IKControls if they exist
+	if leftFootIK then leftFootIK:Destroy() end
+	if rightFootIK then rightFootIK:Destroy() end
+
+	leftFootIK = Instance.new("IKControl")
+	leftFootIK.Name = "LeftFootIK"
+	leftFootIK.Type = Enum.IKControlType.Position
+	leftFootIK.ChainRoot = char:FindFirstChild("LeftUpperLeg")
+	leftFootIK.EndEffector = char:FindFirstChild("LeftFoot")
+	leftFootIK.Target = Instance.new("Attachment", char:FindFirstChild("LeftFoot"))
+	leftFootIK.Target.Name = "LeftFootTarget"
+	leftFootIK.Enabled = false
+	leftFootIK.Parent = hum
+
+	rightFootIK = Instance.new("IKControl")
+	rightFootIK.Name = "RightFootIK"
+	rightFootIK.Type = Enum.IKControlType.Position
+	rightFootIK.ChainRoot = char:FindFirstChild("RightUpperLeg")
+	rightFootIK.EndEffector = char:FindFirstChild("RightFoot")
+	rightFootIK.Target = Instance.new("Attachment", char:FindFirstChild("RightFoot"))
+	rightFootIK.Target.Name = "RightFootTarget"
+	rightFootIK.Enabled = false
+	rightFootIK.Parent = hum
+end
+
+setupIKControls()
+
+-- Re-setup IKControls on respawn
+hum:GetPropertyChangedSignal("Parent"):Connect(function()
+	if hum.Parent == nil then return end
+	setupIKControls()
+end)
+
 RunService.Heartbeat:Connect(function(dt)
 	if script.ragdoll.Value == true and BALANCE == true and upperBG.Parent and lowerBG.Parent then
 		local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("UpperTorso")
@@ -273,6 +312,25 @@ RunService.Heartbeat:Connect(function(dt)
 			lowerBG.D = 0
 			lowerBG.CFrame = CFrame.new(root.Position, root.Position + Vector3.new(0,1,0))
 		end
+		-- Enable IKControl for feet and simulate stepping
+		if leftFootIK and rightFootIK then
+			leftFootIK.Enabled = true
+			rightFootIK.Enabled = true
+			-- Simulate walking: alternate foot targets forward/backward
+			local stepTime = tick() % 1
+			local stepDist = 0.5
+			local baseY = char:FindFirstChild("HumanoidRootPart").Position.Y - hum.HipHeight
+			if stepTime < 0.5 then
+				leftFootIK.Target.Position = Vector3.new(-0.5, baseY, 0.3)
+				rightFootIK.Target.Position = Vector3.new(0.5, baseY, -0.3)
+			else
+				leftFootIK.Target.Position = Vector3.new(-0.5, baseY, -0.3)
+				rightFootIK.Target.Position = Vector3.new(0.5, baseY, 0.3)
+			end
+		end
+	else
+		if leftFootIK then leftFootIK.Enabled = false end
+		if rightFootIK then rightFootIK.Enabled = false end
 	end
 end)
 
@@ -1170,11 +1228,6 @@ game:GetService("RunService").RenderStepped:Connect(function()
 
 	if falldontloop == false then
 		falldontloop = true
-		FallKneeRotationCurrent = FallKneeRotationCurrent + FallKneeRotation
-		FallKneeRotationCurrent2 = FallKneeRotationCurrent2 - FallKneeRotation
-
-		task.wait(FallTimeLoop)
-
 		FallKneeRotationCurrent = FallKneeRotationCurrent + FallKneeRotation
 		FallKneeRotationCurrent2 = FallKneeRotationCurrent2 - FallKneeRotation
 

@@ -285,6 +285,7 @@ end
 
 local stepCooldown = 0
 local lastStepLeft = true
+local time = 0
 
 -- VectorForce-based balancing setup
 local root = char:FindFirstChild("HumanoidRootPart")
@@ -307,6 +308,21 @@ RunService.Heartbeat:Connect(function(dt)
             local supportMid = (leftPos + rightPos) / 2
             local comGround = Vector3.new(root.Position.X, leftPos.Y, root.Position.Z)
 
+            -- Dynamic stepping
+            time = time + dt
+            local stepRadius = 0.4
+            local stepSpeed = 2.5 -- how fast to shuffle
+            local phase = math.sin(time * stepSpeed)
+            local comOffset = (comGround - supportMid)
+            local stepDir = Vector3.new(0,0,0)
+            if comOffset.Magnitude > 0.1 then
+                stepDir = comOffset.Unit * math.min(comOffset.Magnitude, 0.7)
+            end
+
+            -- Oscillate feet left/right, bias toward COM
+            leftFootIK.Target.Position = supportMid + Vector3.new(-0.5, 0, 0) + stepDir + Vector3.new(0, 0, phase * stepRadius)
+            rightFootIK.Target.Position = supportMid + Vector3.new(0.5, 0, 0) + stepDir + Vector3.new(0, 0, -phase * stepRadius)
+
             -- Aim torso toward supportMid
             local lookVec = (supportMid - root.Position)
             if lookVec.Magnitude > 0.1 then
@@ -321,21 +337,6 @@ RunService.Heartbeat:Connect(function(dt)
             forceDir = Vector3.new(forceDir.X, 0, forceDir.Z)
             local forceStrength = 2500 -- Tune for your rig
             balanceForce.Force = forceDir * forceStrength
-
-            -- Step logic
-            stepCooldown = math.max(0, stepCooldown - dt)
-            local toCOM = comGround - supportMid
-            local stepThreshold = 1.0
-            if toCOM.Magnitude > stepThreshold and stepCooldown == 0 then
-                if lastStepLeft then
-                    rightFootIK.Target.Position = comGround + Vector3.new(0.5, 0, 0)
-                    lastStepLeft = false
-                else
-                    leftFootIK.Target.Position = comGround + Vector3.new(-0.5, 0, 0)
-                    lastStepLeft = true
-                end
-                stepCooldown = 0.25
-            end
         end
     else
         if leftFootIK then leftFootIK.Enabled = false end

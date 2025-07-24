@@ -21,7 +21,10 @@ hum.Died:Connect(function()
 	print("Character died - activating ragdoll")
 	script.ragdoll.Value = true
 	startShake(2) -- strong shake on death
-	
+
+	BALANCE = false -- Disable balancing on death
+	ONLYBALANCEONETIME = false
+
 	-- Clean up ragdoll state after respawn delay
 	-- Let Roblox handle respawn naturally
 	local function waitForRespawn()
@@ -37,7 +40,6 @@ hum.Died:Connect(function()
 			end)
 		end
 	end
-	
 	-- Start respawn monitoring
 	waitForRespawn()
 end)
@@ -233,14 +235,20 @@ RunService.Heartbeat:Connect(function()
 			end
 			flatLook = flatLook.Unit
 			local targetCF = CFrame.new(root.Position, root.Position + flatLook)
-			
+
+			-- Add a small random sway for realism
+			local sway = CFrame.Angles(
+				math.rad(math.random(-1,1) * 0.5),
+				math.rad(math.random(-1,1) * 0.5),
+				math.rad(math.random(-1,1) * 0.5)
+			)
+			targetCF = targetCF * sway
 			
 			upperBG.CFrame = targetCF
 			lowerBG.CFrame = targetCF
 			upperAO.CFrame = targetCF
 			lowerAO.CFrame = targetCF
 
-			
 			local tiltDot = root.CFrame.UpVector:Dot(Vector3.new(0,1,0))
 			local tiltFactor = math.clamp(1 - tiltDot, 0, 1)
 			local dynamicTorque = math.clamp(BalanceMaxForce + (BalanceMaxForce * 3) * tiltFactor, 0, 500)
@@ -1172,16 +1180,6 @@ game:GetService("RunService").RenderStepped:Connect(function()
 
 		task.wait(FallTimeLoop)
 
-		FallKneeRotationCurrent = FallKneeRotationCurrent + FallKneeRotation
-		FallKneeRotationCurrent2 = FallKneeRotationCurrent2 - FallKneeRotation
-
-		task.wait(FallTimeLoop)
-
-		FallKneeRotationCurrent = FallKneeRotationCurrent - FallKneeRotation
-		FallKneeRotationCurrent2 = FallKneeRotationCurrent2 + FallKneeRotation
-
-		task.wait(FallTimeLoop)
-
 		FallKneeRotationCurrent = FallKneeRotationCurrent - FallKneeRotation
 		FallKneeRotationCurrent2 = FallKneeRotationCurrent2 + FallKneeRotation
 
@@ -1405,13 +1403,6 @@ while task.wait(BalanceWalkTimeLoop) do
 	BalanceFootStepCurrentDist = BalanceFootStepCurrentDist - BalanceFootStepDist
 
 	BalanceFootStepCurrentDistHeight2 = BalanceFootStepCurrentDistHeight2 - BalanceFootStepDistHeight
-
-	BalanceFootStepCurrentDistHeight = BalanceFootStepCurrentDistHeight - BalanceFootStepDistHeight
-
-	task.wait(BalanceWalkTimeLoop)
-	BalanceFootStepCurrentDist = BalanceFootStepCurrentDist - BalanceFootStepDist
-
-	BalanceFootStepCurrentDistHeight2 = BalanceFootStepCurrentDistHeight2 + BalanceFootStepDistHeight
 
 	BalanceFootStepCurrentDistHeight = BalanceFootStepCurrentDistHeight - BalanceFootStepDistHeight
 

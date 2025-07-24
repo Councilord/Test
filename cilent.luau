@@ -1,3 +1,4 @@
+-- VERSION: 1.4.0 (auto-incremented)
 -- THIS IS A RAGDOLL CILENT
 -- EUPHORIA RAGDOLL V0.1 MADE BY PS_LOL2020
 
@@ -7,6 +8,8 @@
 -- IF U FOUND A ERROR TELL ME IN VIA DISCORD SERVER FOUND IN MY YOUTUBE
 
 wait(0.5) -- starts
+
+local VERSION = "1.4.0"
 
 local USERINPUT = game:GetService("UserInputService")
 local char = script.Parent
@@ -316,34 +319,49 @@ RunService.Heartbeat:Connect(function(dt)
 			leftFootIK.Enabled = true
 			rightFootIK.Enabled = true
 
-			-- Project root position onto ground
-			local rayOrigin = root.Position
-			local rayDir = Vector3.new(0, -5, 0)
-			local rayResult = workspace:Raycast(rayOrigin, rayDir, parasm)
-			local groundY = rayResult and rayResult.Position.Y or (root.Position.Y - hum.HipHeight)
+			if leftFootIK and rightFootIK then
+				leftFootIK.Enabled = true
+				rightFootIK.Enabled = true
 
-			-- Calculate COM (use root for simplicity)
-			local com = root.Position
+				-- Project root position onto ground
+				local rayOrigin = root.Position
+				local rayDir = Vector3.new(0, -5, 0)
+				local rayResult = workspace:Raycast(rayOrigin, rayDir, parasm)
+				local groundY = rayResult and rayResult.Position.Y or (root.Position.Y - hum.HipHeight)
 
-			-- Get current foot positions
-			local leftFootPos = leftFootIK.Target.Position
-			local rightFootPos = rightFootIK.Target.Position
-			local feetMid = (leftFootPos + rightFootPos) / 2
+				-- Calculate COM (use root for simplicity)
+				local com = root.Position
 
-			-- Vector from feet midpoint to COM
-			local toCOM = Vector3.new(com.X, groundY, com.Z) - Vector3.new(feetMid.X, groundY, feetMid.Z)
-			local stepThreshold = 0.7 -- how far COM can move before stepping
-			local stanceWidth = 0.5
+				-- Get current foot positions
+				local leftFootPos = leftFootIK.Target.Position
+				local rightFootPos = rightFootIK.Target.Position
+				local feetMid = (leftFootPos + rightFootPos) / 2
 
-			-- If COM is outside support area, move both feet in that direction
-			if toCOM.Magnitude > stepThreshold then
-				local stepDir = toCOM.Unit * math.min(toCOM.Magnitude, 1)
-				leftFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(-stanceWidth, 0, 0) + stepDir
-				rightFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(stanceWidth, 0, 0) + stepDir
-			else
-				-- Keep feet under body, slightly apart
-				leftFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(-stanceWidth, 0, 0)
-				rightFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(stanceWidth, 0, 0)
+				-- Vector from feet midpoint to COM
+				local toCOM = Vector3.new(com.X, groundY, com.Z) - Vector3.new(feetMid.X, groundY, feetMid.Z)
+				local stanceWidth = 0.5
+
+				-- Use the projected velocity to determine step direction and widen stance if falling
+				local velocity = root.Velocity
+				local horizontalVel = Vector3.new(velocity.X, 0, velocity.Z)
+				local velMag = horizontalVel.Magnitude
+				local stepThreshold = 0.5 + math.clamp(velMag * 0.04, 0, 0.5) -- wider stance if moving fast
+				local maxStep = 1.5
+
+				local stepDir = Vector3.new(0, 0, 0)
+				if velMag > 0.1 then
+					stepDir = horizontalVel.Unit * math.min(velMag * 0.08, maxStep)
+				end
+
+				-- If COM is outside support area, move both feet in that direction
+				if toCOM.Magnitude > stepThreshold then
+					leftFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(-stanceWidth, 0, 0) + stepDir
+					rightFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(stanceWidth, 0, 0) + stepDir
+				else
+					-- Keep feet under body, slightly apart, and step in direction of movement
+					leftFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(-stanceWidth, 0, 0) + stepDir
+					rightFootIK.Target.Position = Vector3.new(com.X, groundY, com.Z) + Vector3.new(stanceWidth, 0, 0) + stepDir
+				end
 			end
 		end
 	else
@@ -1494,13 +1512,6 @@ while task.wait(BalanceWalkTimeLoop) do
 	BalanceFootStepCurrentDist = BalanceFootStepCurrentDist - BalanceFootStepDist
 
 	BalanceFootStepCurrentDistHeight2 = BalanceFootStepCurrentDistHeight2 - BalanceFootStepDistHeight
-
-	BalanceFootStepCurrentDistHeight = BalanceFootStepCurrentDistHeight - BalanceFootStepDistHeight
-
-	task.wait(BalanceWalkTimeLoop)
-	BalanceFootStepCurrentDist = BalanceFootStepCurrentDist - BalanceFootStepDist
-
-	BalanceFootStepCurrentDistHeight2 = BalanceFootStepCurrentDistHeight2 + BalanceFootStepDistHeight
 
 	BalanceFootStepCurrentDistHeight = BalanceFootStepCurrentDistHeight - BalanceFootStepDistHeight
 
